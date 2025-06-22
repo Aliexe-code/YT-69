@@ -40,6 +40,7 @@ type Config struct {
 	Verbose     bool
 	ShowInfo    bool
 	ListFormats bool
+	TurboMode   bool
 }
 
 // Downloader handles YouTube video downloads
@@ -56,6 +57,7 @@ type Options struct {
 	VideoOnly bool
 	Format    string
 	Verbose   bool
+	TurboMode bool
 }
 
 // VideoInfo contains metadata about a YouTube video
@@ -98,6 +100,7 @@ func main() {
 		VideoOnly: config.VideoOnly,
 		Format:    config.Format,
 		Verbose:   config.Verbose,
+		TurboMode: config.TurboMode,
 	})
 
 	if config.Playlist {
@@ -191,6 +194,28 @@ func (d *Downloader) downloadWithYtDlp(videoURL string) error {
 		"-o", filepath.Join(d.options.OutputDir, "%(title)s.%(ext)s"),
 	}
 
+	// 🚀 BEAST MODE: Add turbo optimizations if enabled
+	if d.options.TurboMode {
+		turboArgs := []string{
+			"--concurrent-fragments", "8",        // Download 8 fragments simultaneously
+			"--fragment-retries", "10",           // Retry failed fragments 10 times
+			"--retries", "10",                    // Retry failed downloads 10 times
+			"--file-access-retries", "10",        // Retry file access 10 times
+			"--throttled-rate", "100K",           // Minimum download rate (retry if slower)
+			"--buffer-size", "16384",             // 16KB buffer size for faster I/O
+			"--http-chunk-size", "10485760",      // 10MB chunks for HTTP downloads
+			"--no-part",                          // Don't use .part files (faster for large files)
+			"--no-mtime",                         // Don't set file modification time (faster)
+			"--no-check-certificates",            // Skip SSL certificate checks (faster)
+			"--prefer-free-formats",              // Prefer formats that don't need post-processing
+		}
+		args = append(args, turboArgs...)
+
+		if d.options.Verbose {
+			fmt.Println("🚀 TURBO MODE ACTIVATED - Maximum download speed!")
+		}
+	}
+
 	// Add format selection (always specify format for proper audio/video selection)
 	args = append(args, "-f", d.buildFormatSelector())
 
@@ -236,6 +261,28 @@ func (d *Downloader) downloadPlaylistWithYtDlp(playlistURL string) error {
 		"--progress",
 		"-o", filepath.Join(d.options.OutputDir, "%(playlist_title)s/%(title)s.%(ext)s"),
 		"--yes-playlist",
+	}
+
+	// 🚀 BEAST MODE: Add turbo optimizations if enabled
+	if d.options.TurboMode {
+		turboArgs := []string{
+			"--concurrent-fragments", "8",        // Download 8 fragments simultaneously
+			"--fragment-retries", "10",           // Retry failed fragments 10 times
+			"--retries", "10",                    // Retry failed downloads 10 times
+			"--file-access-retries", "10",        // Retry file access 10 times
+			"--throttled-rate", "100K",           // Minimum download rate (retry if slower)
+			"--buffer-size", "16384",             // 16KB buffer size for faster I/O
+			"--http-chunk-size", "10485760",      // 10MB chunks for HTTP downloads
+			"--no-part",                          // Don't use .part files (faster for large files)
+			"--no-mtime",                         // Don't set file modification time (faster)
+			"--no-check-certificates",            // Skip SSL certificate checks (faster)
+			"--prefer-free-formats",              // Prefer formats that don't need post-processing
+		}
+		args = append(args, turboArgs...)
+
+		if d.options.Verbose {
+			fmt.Println("🚀 TURBO MODE ACTIVATED - Maximum download speed for playlist!")
+		}
 	}
 
 	// Add quality and format options
@@ -311,24 +358,66 @@ func (d *Downloader) listFormatsWithYtDlp(videoURL string) ([]FormatInfo, error)
 // buildFormatSelector builds the format selector string for yt-dlp
 func (d *Downloader) buildFormatSelector() string {
 	if d.options.AudioOnly {
-		// Force audio-only download
-		return "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio"
+		// Force audio-only download - prioritize highest quality audio
+		return "bestaudio[acodec!=none]/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio"
 	}
 	if d.options.VideoOnly {
-		// Force video-only download (no audio)
-		return "bestvideo[ext=mp4]/bestvideo"
+		// Force video-only download (no audio) - prioritize highest quality video
+		return "bestvideo[vcodec!=none][ext=mp4]/bestvideo[ext=webm]/bestvideo"
 	}
 
-	// Video + Audio downloads
-	switch strings.ToLower(d.options.Quality) {
+	// Video + Audio downloads with highest quality support
+	quality := strings.ToLower(d.options.Quality)
+
+	switch quality {
 	case "worst":
 		return "worst[ext=mp4]/worst"
+
 	case "best", "":
-		return "best[ext=mp4]/best"
+		// 🎯 ULTIMATE QUALITY: Try to get the absolute best available
+		return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best"
+
+	case "4k", "2160p":
+		// 🎬 4K Ultra HD (2160p) - Premium quality
+		return "bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160][ext=mp4]/best[height<=2160]"
+
+	case "2k", "1440p":
+		// 🎬 2K Quad HD (1440p) - High quality
+		return "bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440][ext=mp4]/best[height<=1440]"
+
+	case "1080p", "fhd", "fullhd":
+		// 🎬 Full HD (1080p) - Standard high quality
+		return "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080][ext=mp4]/best[height<=1080]"
+
+	case "720p", "hd":
+		// 🎬 HD (720p) - Standard quality
+		return "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720][ext=mp4]/best[height<=720]"
+
+	case "480p", "sd":
+		// 📺 Standard Definition (480p)
+		return "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480][ext=mp4]/best[height<=480]"
+
+	case "360p":
+		// 📺 Low quality (360p)
+		return "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best[height<=360][ext=mp4]/best[height<=360]"
+
+	case "240p":
+		// 📺 Very low quality (240p)
+		return "bestvideo[height<=240][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=240]+bestaudio/best[height<=240][ext=mp4]/best[height<=240]"
+
+	case "144p":
+		// 📺 Minimum quality (144p)
+		return "bestvideo[height<=144][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=144]+bestaudio/best[height<=144][ext=mp4]/best[height<=144]"
+
 	default:
-		// For specific resolutions like "720p", "1080p"
-		height := strings.TrimSuffix(strings.ToLower(d.options.Quality), "p")
-		return fmt.Sprintf("best[height<=%s][ext=mp4]/best[height<=%s]", height, height)
+		// Handle custom resolutions (e.g., "1200p", "900p")
+		if strings.HasSuffix(quality, "p") {
+			height := strings.TrimSuffix(quality, "p")
+			return fmt.Sprintf("bestvideo[height<=%s][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=%s]+bestaudio/best[height<=%s][ext=mp4]/best[height<=%s]", height, height, height, height)
+		}
+
+		// Fallback to best quality
+		return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best"
 	}
 }
 
@@ -460,6 +549,8 @@ func parseFlags() Config {
 	flag.BoolVar(&config.Verbose, "verbose", false, "Enable verbose output")
 	flag.BoolVar(&config.ShowInfo, "info", false, "Show video information without downloading")
 	flag.BoolVar(&config.ListFormats, "list-formats", false, "List available formats for the video")
+	flag.BoolVar(&config.TurboMode, "turbo", false, "Enable turbo mode for maximum download speed")
+	flag.BoolVar(&config.TurboMode, "t", false, "Enable turbo mode (shorthand)")
 
 	// Custom usage function
 	flag.Usage = func() {
@@ -470,12 +561,18 @@ func parseFlags() Config {
 		fmt.Println("Examples:")
 		fmt.Printf("  # Download video (best quality)\n")
 		fmt.Printf("  %s -url https://youtube.com/watch?v=dQw4w9WgXcQ\n\n", os.Args[0])
-		fmt.Printf("  # Download specific video quality\n")
-		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ -q 720p\n\n", os.Args[0])
+		fmt.Printf("  # Download 4K quality\n")
+		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ -q 4k\n\n", os.Args[0])
+		fmt.Printf("  # Download 2K quality\n")
+		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ -q 2k\n\n", os.Args[0])
+		fmt.Printf("  # Download 1080p quality\n")
+		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ -q 1080p\n\n", os.Args[0])
 		fmt.Printf("  # Download audio only (M4A/WebM)\n")
 		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ -a\n\n", os.Args[0])
 		fmt.Printf("  # Download audio as MP3 (requires ffmpeg)\n")
 		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ -a -f mp3\n\n", os.Args[0])
+		fmt.Printf("  # Download with TURBO MODE (maximum speed)\n")
+		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ --turbo\n\n", os.Args[0])
 		fmt.Printf("  # Download playlist\n")
 		fmt.Printf("  %s -u https://youtube.com/playlist?list=... -p\n\n", os.Args[0])
 		fmt.Printf("  # Get video info\n")
@@ -483,7 +580,11 @@ func parseFlags() Config {
 		fmt.Println("\nOptions:")
 		flag.PrintDefaults()
 		fmt.Println("\nSupported Qualities:")
-		fmt.Println("  best, worst, 144p, 240p, 360p, 480p, 720p, 1080p, 1440p, 2160p")
+		fmt.Println("  🎬 Ultra High: 4k/2160p, 2k/1440p")
+		fmt.Println("  🎬 High: 1080p/fhd, 720p/hd")
+		fmt.Println("  📺 Standard: 480p/sd, 360p, 240p, 144p")
+		fmt.Println("  🎯 Auto: best (highest available), worst (lowest)")
+		fmt.Println("  📝 Custom: Any resolution like 900p, 1200p, etc.")
 		fmt.Println("\nSupported Formats:")
 		fmt.Println("  Video: mp4, webm, mkv, avi, mov")
 		fmt.Println("  Audio: mp3, m4a, wav, aac, ogg (mp3/wav require ffmpeg)")
@@ -492,6 +593,8 @@ func parseFlags() Config {
 		fmt.Println("  ✅ Works without ffmpeg (native formats)")
 		fmt.Println("  ✅ MP3 conversion with ffmpeg installed")
 		fmt.Println("  ✅ Flexible for both video and audio downloads")
+		fmt.Println("  🚀 TURBO MODE for maximum download speed")
+		fmt.Println("  🎬 4K/2K/1080p ULTRA HIGH QUALITY support")
 	}
 
 	// Parse flags

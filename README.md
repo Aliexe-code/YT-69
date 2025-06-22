@@ -4,10 +4,12 @@ A fast and clean YouTube video downloader CLI tool built with Go. Downloads only
 
 ## 🚀 Features
 
+- **🎬 4K/2K Ultra High Quality** - Download videos in 4K (2160p), 2K (1440p), 1080p and more
+- **🚀 Turbo Mode** - Maximum download speed with 8 concurrent fragments
 - **Single Video Downloads** - Download any YouTube video
 - **Playlist Support** - Download entire playlists at once
 - **Audio Extraction** - Download audio-only files in various formats
-- **Quality Selection** - Choose from multiple video qualities
+- **Smart Quality Selection** - Automatic best quality detection with fallbacks
 - **Format Conversion** - Convert to different video/audio formats
 - **Video Information** - Get detailed metadata without downloading
 - **Cross-Platform** - Works on Windows, macOS, and Linux
@@ -35,36 +37,54 @@ make build
 ### Basic Examples
 
 ```bash
-# Download a video (best quality, MP4 format)
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ"
+# Download a video (best quality available)
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ"
 
-# Download with specific quality
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 720p
+# 🎬 Download 4K Ultra HD quality
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 4k
+
+# 🎬 Download 2K Quad HD quality
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 2k
+
+# 🎬 Download 1080p Full HD quality
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 1080p
 
 # Download audio only
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -audio -format mp3
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -audio -format mp3
+
+# 🚀 TURBO MODE - Maximum download speed
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --turbo
+
+# 🔥 ULTIMATE COMBO - 4K + Turbo Mode
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 4k --turbo
 
 # Download to specific directory
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -output "./my-videos"
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -output "./my-videos"
 
 # Download entire playlist
-./ytdl.exe -url "https://youtube.com/playlist?list=PLrAXtmRdnEQy6nuLMHjMZOz59Oq8VGLrG" -playlist
+./yt-69.exe -url "https://youtube.com/playlist?list=PLrAXtmRdnEQy6nuLMHjMZOz59Oq8VGLrG" -playlist
 ```
 
 ### Advanced Usage
 
 ```bash
 # Get video information without downloading
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --info
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --info
 
 # List available formats
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --list-formats
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --list-formats
 
 # Download video only (no audio)
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -video -format mp4
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -video -format mp4
+
+# 2K quality with turbo speed
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 2k --turbo
+
+# Custom resolution
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 900p
 
 # Verbose output for debugging
-./ytdl.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -verbose
+./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -verbose
 ```
 
 ### Using with Makefile
@@ -86,11 +106,12 @@ make run
 |------|-------|-------------|---------|
 | `--url` | `-u` | YouTube video or playlist URL (required) | - |
 | `--output` | `-o` | Output directory for downloads | `./downloads` |
-| `--quality` | `-q` | Video quality (best, worst, 720p, etc.) | `best` |
+| `--quality` | `-q` | Video quality (4k, 2k, 1080p, best, etc.) | `best` |
 | `--format` | `-f` | Output format (mp4, mp3, etc.) | `mp4` |
 | `--audio` | `-a` | Download audio only | `false` |
 | `--video` | `-v` | Download video only (no audio) | `false` |
 | `--playlist` | `-p` | Download entire playlist | `false` |
+| `--turbo` | `-t` | Enable turbo mode for maximum speed | `false` |
 | `--verbose` | - | Enable verbose output | `false` |
 | `--info` | - | Show video info without downloading | `false` |
 | `--list-formats` | - | List available formats | `false` |
@@ -112,18 +133,66 @@ make run
 - **OGG** - Open source, good compression
 
 ### Quality Options
-- **best** - Highest available quality
-- **worst** - Lowest available quality
-- **2160p** - 4K Ultra HD
-- **1440p** - 2K Quad HD
-- **1080p** - Full HD
-- **720p** - HD
-- **480p** - Standard Definition
+
+#### 🎬 Ultra High Quality
+- **4k/2160p** - 4K Ultra HD (best for large screens and TVs)
+- **2k/1440p** - 2K Quad HD (great balance of quality/size)
+
+#### 🎬 High Quality
+- **1080p/fhd** - Full HD (standard high quality)
+- **720p/hd** - HD (good for most uses)
+
+#### 📺 Standard Quality
+- **480p/sd** - Standard Definition
 - **360p** - Low quality
 - **240p** - Very low quality
 - **144p** - Minimum quality
 
-## 🛠️ Makefile Commands
+#### 🎯 Smart Options
+- **best** - Automatically picks highest available quality
+- **worst** - Lowest available quality
+- **Custom** - Any resolution like 900p, 1200p, etc.
+
+## � Turbo Mode & 4K Quality
+
+### 🔥 Ultimate Performance Features
+
+**Turbo Mode** - Maximum download speed optimization:
+```bash
+# Enable turbo mode for any download
+yt-69.exe -url "VIDEO_URL" --turbo
+
+# Turbo mode + specific quality
+yt-69.exe -url "VIDEO_URL" --turbo -quality 1080p
+```
+
+**What Turbo Mode Does:**
+- ✅ Downloads 8 fragments simultaneously
+- ✅ Uses 10MB chunks for faster transfer
+- ✅ Aggressive retry settings (10 retries)
+- ✅ Optimized buffer sizes (16KB)
+- ✅ Maximum bandwidth utilization
+- ✅ Skip unnecessary file operations
+
+**4K/2K Ultra Quality:**
+```bash
+# 🎬 4K Ultra HD (if available)
+yt-69.exe -url "VIDEO_URL" -quality 4k
+
+# 🎬 2K Quad HD (great balance)
+yt-69.exe -url "VIDEO_URL" -quality 2k
+
+# 🔥 ULTIMATE COMBO - 4K + Turbo
+yt-69.exe -url "VIDEO_URL" -quality 4k --turbo
+```
+
+**Perfect For:**
+- 🎬 Large video files (1GB+)
+- 🚀 High-speed internet connections
+- 📺 Premium viewing on large screens
+- ⚡ When you want downloads ASAP
+
+## �🛠️ Makefile Commands
 
 | Command | Description |
 |---------|-------------|

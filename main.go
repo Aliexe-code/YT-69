@@ -41,6 +41,8 @@ type Config struct {
 	ShowInfo    bool
 	ListFormats bool
 	TurboMode   bool
+	MergeFiles  bool
+	InstallFFmpeg bool
 }
 
 // Downloader handles YouTube video downloads
@@ -90,6 +92,16 @@ func main() {
 
 	if config.ListFormats {
 		listFormats(config.URL)
+		return
+	}
+
+	if config.MergeFiles {
+		mergeVideoAudio()
+		return
+	}
+
+	if config.InstallFFmpeg {
+		installFFmpeg()
 		return
 	}
 
@@ -179,40 +191,84 @@ func (d *Downloader) isYtDlpAvailable() bool {
 	return err == nil
 }
 
-// isFFmpegAvailable checks if ffmpeg is installed and available
+// isFFmpegAvailable checks if ffmpeg is installed and available (local or system)
 func (d *Downloader) isFFmpegAvailable() bool {
-	_, err := exec.LookPath("ffmpeg")
-	return err == nil
+	return d.getFFmpegPath() != ""
+}
+
+// getFFmpegPath returns the path to ffmpeg executable (local or system)
+func (d *Downloader) getFFmpegPath() string {
+	// First check local directory
+	if _, err := os.Stat("ffmpeg/ffmpeg.exe"); err == nil {
+		abs, _ := filepath.Abs("ffmpeg/ffmpeg.exe")
+		return abs
+	}
+	if _, err := os.Stat("ffmpeg.exe"); err == nil {
+		abs, _ := filepath.Abs("ffmpeg.exe")
+		return abs
+	}
+	// Then check system PATH
+	if path, err := exec.LookPath("ffmpeg"); err == nil {
+		return path
+	}
+	return ""
 }
 
 // downloadWithYtDlp downloads using yt-dlp (preferred method)
 func (d *Downloader) downloadWithYtDlp(videoURL string) error {
 	args := []string{
 		"--no-warnings",
-		"--quiet",
 		"--progress",
+		"--newline",                          // Each progress update on new line
+		"--progress-template", "download:📥 %(progress.downloaded_bytes)s/%(progress.total_bytes)s (%(progress.percent)s) at %(progress.speed)s ETA %(progress.eta)s",
 		"-o", filepath.Join(d.options.OutputDir, "%(title)s.%(ext)s"),
+		"--audio-quality", "0",               // Best audio quality
+		"--merge-output-format", "mp4",       // Always merge to MP4
+		"--embed-metadata",                   // Embed metadata for better seeking
 	}
 
-	// 🚀 BEAST MODE: Add turbo optimizations if enabled
+	// Set ffmpeg location if we have local installation
+	ffmpegPath := d.getFFmpegPath()
+	if ffmpegPath != "" {
+		args = append(args, "--ffmpeg-location", ffmpegPath)
+		if !d.options.Verbose {
+			fmt.Println("🎬 Using local ffmpeg - will create single video file with audio")
+		}
+	} else {
+		// If no ffmpeg, warn about separate files
+		if !d.options.Verbose {
+			fmt.Println("⚠️  Note: ffmpeg not found - will download separate video/audio files")
+			fmt.Println("   Run install-ffmpeg.bat for automatic single-file downloads")
+		}
+	}
+
+	// 🚀 MONSTER MODE: Maximum internet bandwidth utilization
 	if d.options.TurboMode {
 		turboArgs := []string{
-			"--concurrent-fragments", "8",        // Download 8 fragments simultaneously
-			"--fragment-retries", "10",           // Retry failed fragments 10 times
-			"--retries", "10",                    // Retry failed downloads 10 times
-			"--file-access-retries", "10",        // Retry file access 10 times
-			"--throttled-rate", "100K",           // Minimum download rate (retry if slower)
-			"--buffer-size", "16384",             // 16KB buffer size for faster I/O
-			"--http-chunk-size", "10485760",      // 10MB chunks for HTTP downloads
+			"--concurrent-fragments", "16",       // Download 16 fragments simultaneously (doubled)
+			"--fragment-retries", "15",           // More aggressive retry for fragments
+			"--retries", "15",                    // More aggressive retry for downloads
+			"--file-access-retries", "15",        // More aggressive file access retries
+			"--throttled-rate", "50K",            // Lower threshold for retry (more aggressive)
+			"--buffer-size", "65536",             // 64KB buffer size (4x larger)
+			"--http-chunk-size", "52428800",      // 50MB chunks (5x larger for maximum throughput)
+			"--socket-timeout", "30",             // Longer socket timeout for stability
 			"--no-part",                          // Don't use .part files (faster for large files)
 			"--no-mtime",                         // Don't set file modification time (faster)
 			"--no-check-certificates",            // Skip SSL certificate checks (faster)
 			"--prefer-free-formats",              // Prefer formats that don't need post-processing
+			"--extractor-retries", "10",          // Retry extractor failures
+			"--keep-fragments",                   // Keep fragments for debugging if needed
+			"--hls-prefer-native",                // Use native HLS downloader (faster)
+			"--external-downloader-args", "ffmpeg:-threads 0 -loglevel quiet", // Use all CPU cores for ffmpeg
 		}
 		args = append(args, turboArgs...)
 
 		if d.options.Verbose {
-			fmt.Println("🚀 TURBO MODE ACTIVATED - Maximum download speed!")
+			fmt.Println("🚀 MONSTER MODE ACTIVATED - Maximum internet bandwidth utilization!")
+			fmt.Println("   📊 16 concurrent fragments, 50MB chunks, 64KB buffers")
+		} else {
+			fmt.Println("🚀 MONSTER MODE - Using maximum internet bandwidth...")
 		}
 	}
 
@@ -250,38 +306,85 @@ func (d *Downloader) downloadWithYtDlp(videoURL string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	err := cmd.Run()
+
+	// If download succeeded, try to merge files automatically if we have separate files
+	if err == nil || (err != nil && strings.Contains(err.Error(), "Postprocessing")) {
+		// Check if we have separate files that need merging
+		if d.hasSeparateFiles() {
+			if d.isFFmpegAvailable() {
+				fmt.Println("\n🔧 Merging video and audio files...")
+				mergeErr := d.autoMergeFiles()
+				if mergeErr == nil {
+					fmt.Println("✅ Successfully merged into single video file with audio!")
+					return nil
+				} else {
+					fmt.Printf("⚠️  Merge failed: %v\n", mergeErr)
+				}
+			} else {
+				fmt.Println("\n🔧 Download completed but files are separate (video + audio)")
+				fmt.Println("💡 To get a single file with audio, install ffmpeg:")
+				fmt.Println("   Windows: ./yt-69.exe --install-ffmpeg")
+				fmt.Println("   Mac: brew install ffmpeg")
+				fmt.Println("   Linux: sudo apt install ffmpeg")
+				fmt.Println("\n🎬 Your files are ready to use:")
+				fmt.Println("   - Video file: .mp4 (no audio)")
+				fmt.Println("   - Audio file: .m4a")
+			}
+		}
+		return nil // Don't treat postprocessing errors as fatal
+	}
+
+	return err
 }
 
 // downloadPlaylistWithYtDlp downloads a playlist using yt-dlp
 func (d *Downloader) downloadPlaylistWithYtDlp(playlistURL string) error {
 	args := []string{
 		"--no-warnings",
-		"--quiet",
 		"--progress",
+		"--newline",                          // Each progress update on new line
+		"--progress-template", "download:📥 %(progress.downloaded_bytes)s/%(progress.total_bytes)s (%(progress.percent)s) at %(progress.speed)s ETA %(progress.eta)s",
 		"-o", filepath.Join(d.options.OutputDir, "%(playlist_title)s/%(title)s.%(ext)s"),
 		"--yes-playlist",
+		"--merge-output-format", "mp4",       // Always merge to MP4
+		"--audio-quality", "0",               // Best audio quality
+		"--embed-metadata",                   // Embed metadata for better seeking
 	}
 
-	// 🚀 BEAST MODE: Add turbo optimizations if enabled
+	// Set ffmpeg location if we have local installation
+	ffmpegPath := d.getFFmpegPath()
+	if ffmpegPath != "" {
+		args = append(args, "--ffmpeg-location", ffmpegPath)
+	}
+
+	// 🚀 MONSTER MODE: Maximum internet bandwidth utilization for playlists
 	if d.options.TurboMode {
 		turboArgs := []string{
-			"--concurrent-fragments", "8",        // Download 8 fragments simultaneously
-			"--fragment-retries", "10",           // Retry failed fragments 10 times
-			"--retries", "10",                    // Retry failed downloads 10 times
-			"--file-access-retries", "10",        // Retry file access 10 times
-			"--throttled-rate", "100K",           // Minimum download rate (retry if slower)
-			"--buffer-size", "16384",             // 16KB buffer size for faster I/O
-			"--http-chunk-size", "10485760",      // 10MB chunks for HTTP downloads
+			"--concurrent-fragments", "16",       // Download 16 fragments simultaneously (doubled)
+			"--fragment-retries", "15",           // More aggressive retry for fragments
+			"--retries", "15",                    // More aggressive retry for downloads
+			"--file-access-retries", "15",        // More aggressive file access retries
+			"--throttled-rate", "50K",            // Lower threshold for retry (more aggressive)
+			"--buffer-size", "65536",             // 64KB buffer size (4x larger)
+			"--http-chunk-size", "52428800",      // 50MB chunks (5x larger for maximum throughput)
+			"--socket-timeout", "30",             // Longer socket timeout for stability
 			"--no-part",                          // Don't use .part files (faster for large files)
 			"--no-mtime",                         // Don't set file modification time (faster)
 			"--no-check-certificates",            // Skip SSL certificate checks (faster)
 			"--prefer-free-formats",              // Prefer formats that don't need post-processing
+			"--extractor-retries", "10",          // Retry extractor failures
+			"--keep-fragments",                   // Keep fragments for debugging if needed
+			"--hls-prefer-native",                // Use native HLS downloader (faster)
+			"--external-downloader-args", "ffmpeg:-threads 0 -loglevel quiet", // Use all CPU cores for ffmpeg
 		}
 		args = append(args, turboArgs...)
 
 		if d.options.Verbose {
-			fmt.Println("🚀 TURBO MODE ACTIVATED - Maximum download speed for playlist!")
+			fmt.Println("🚀 MONSTER MODE ACTIVATED - Maximum internet bandwidth for playlist!")
+			fmt.Println("   📊 16 concurrent fragments, 50MB chunks, 64KB buffers")
+		} else {
+			fmt.Println("🚀 MONSTER MODE - Using maximum internet bandwidth for playlist...")
 		}
 	}
 
@@ -374,28 +477,33 @@ func (d *Downloader) buildFormatSelector() string {
 		return "worst[ext=mp4]/worst"
 
 	case "best", "":
-		// 🎯 ULTIMATE QUALITY: Try to get the absolute best available
-		return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best"
+		// 🎯 ULTIMATE QUALITY: Always prioritize quality, even if separate files
+		return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[acodec!=none]/bestvideo+bestaudio/best[ext=mp4][acodec!=none]/best[acodec!=none]/best"
 
 	case "4k", "2160p":
-		// 🎬 4K Ultra HD (2160p) - Premium quality
-		return "bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160][ext=mp4]/best[height<=2160]"
+		// 🎬 4K Ultra HD (2160p) - Premium quality with guaranteed audio
+		// Prioritize compatible formats (avoid AV01 codec issues)
+		return "bestvideo[height<=2160][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=2160][ext=webm][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160][acodec!=none]/best[height<=2160]"
 
 	case "2k", "1440p":
-		// 🎬 2K Quad HD (1440p) - High quality
-		return "bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440][ext=mp4]/best[height<=1440]"
+		// 🎬 2K Quad HD (1440p) - High quality with guaranteed audio
+		// Prioritize true 2K formats: VP9 2K > H.264 1080p (avoid AV01 codec issues)
+		return "bestvideo[height=1440][ext=webm][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=1440][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=1440][ext=webm][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440][acodec!=none]/best[height<=1440]"
 
 	case "1080p", "fhd", "fullhd":
-		// 🎬 Full HD (1080p) - Standard high quality
-		return "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080][ext=mp4]/best[height<=1080]"
+		// 🎬 Full HD (1080p) - Standard high quality with guaranteed audio
+		// Prioritize compatible formats (avoid AV01 codec issues)
+		return "bestvideo[height<=1080][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=1080][ext=webm][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080][acodec!=none]/best[height<=1080]"
 
 	case "720p", "hd":
-		// 🎬 HD (720p) - Standard quality
-		return "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720][ext=mp4]/best[height<=720]"
+		// 🎬 HD (720p) - Standard quality with guaranteed audio
+		// Prioritize compatible formats (avoid AV01 codec issues)
+		return "bestvideo[height<=720][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=720][ext=webm][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720][acodec!=none]/best[height<=720]"
 
 	case "480p", "sd":
-		// 📺 Standard Definition (480p)
-		return "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480][ext=mp4]/best[height<=480]"
+		// 📺 Standard Definition (480p) - Standard quality with guaranteed audio
+		// Prioritize compatible formats (avoid AV01 codec issues)
+		return "bestvideo[height<=480][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=480][ext=webm][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480][ext=mp4]/best[height<=480]"
 
 	case "360p":
 		// 📺 Low quality (360p)
@@ -551,6 +659,8 @@ func parseFlags() Config {
 	flag.BoolVar(&config.ListFormats, "list-formats", false, "List available formats for the video")
 	flag.BoolVar(&config.TurboMode, "turbo", false, "Enable turbo mode for maximum download speed")
 	flag.BoolVar(&config.TurboMode, "t", false, "Enable turbo mode (shorthand)")
+	flag.BoolVar(&config.MergeFiles, "merge", false, "Merge separate video and audio files in current directory")
+	flag.BoolVar(&config.InstallFFmpeg, "install-ffmpeg", false, "Install ffmpeg automatically (Windows only)")
 
 	// Custom usage function
 	flag.Usage = func() {
@@ -577,6 +687,10 @@ func parseFlags() Config {
 		fmt.Printf("  %s -u https://youtube.com/playlist?list=... -p\n\n", os.Args[0])
 		fmt.Printf("  # Get video info\n")
 		fmt.Printf("  %s -u https://youtube.com/watch?v=dQw4w9WgXcQ --info\n", os.Args[0])
+		fmt.Printf("  # Merge separate video/audio files\n")
+		fmt.Printf("  %s --merge\n", os.Args[0])
+		fmt.Printf("  # Install ffmpeg automatically (Windows)\n")
+		fmt.Printf("  %s --install-ffmpeg\n", os.Args[0])
 		fmt.Println("\nOptions:")
 		flag.PrintDefaults()
 		fmt.Println("\nSupported Qualities:")
@@ -603,15 +717,15 @@ func parseFlags() Config {
 	// Show banner
 	fmt.Printf(banner, version)
 
-	// Validate required URL
-	if config.URL == "" {
+	// Validate required URL (except for merge and install operations)
+	if config.URL == "" && !config.MergeFiles && !config.InstallFFmpeg {
 		fmt.Println("❌ Error: YouTube URL is required")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Validate URL format
-	if !isValidYouTubeURL(config.URL) {
+	// Validate URL format (except for merge and install operations)
+	if !config.MergeFiles && !config.InstallFFmpeg && !isValidYouTubeURL(config.URL) {
 		fmt.Println("❌ Error: Invalid YouTube URL format")
 		fmt.Println("   Supported formats:")
 		fmt.Println("   - https://youtube.com/watch?v=VIDEO_ID")
@@ -636,6 +750,11 @@ func parseFlags() Config {
 	if config.AudioOnly && config.VideoOnly {
 		fmt.Println("❌ Error: Cannot specify both -audio and -video flags")
 		os.Exit(1)
+	}
+
+	// Auto-set AudioOnly flag when quality is "audio"
+	if config.Quality == "audio" {
+		config.AudioOnly = true
 	}
 
 	// Set appropriate format based on audio/video flags
@@ -722,4 +841,182 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// mergeVideoAudio merges separate video and audio files in the current directory
+func mergeVideoAudio() {
+	fmt.Println("🔧 Searching for separate video and audio files to merge...")
+
+	// Check if ffmpeg is available (local or system)
+	var ffmpegPath string
+	if _, err := os.Stat("ffmpeg/ffmpeg.exe"); err == nil {
+		ffmpegPath = "ffmpeg/ffmpeg.exe"
+	} else if _, err := os.Stat("ffmpeg.exe"); err == nil {
+		ffmpegPath = "ffmpeg.exe"
+	} else if _, err := exec.LookPath("ffmpeg"); err == nil {
+		ffmpegPath = "ffmpeg"
+	} else {
+		fmt.Println("❌ Error: ffmpeg not found!")
+		fmt.Println("   Install ffmpeg first:")
+		fmt.Println("   Windows: Run install-ffmpeg.bat")
+		fmt.Println("   Mac: brew install ffmpeg")
+		fmt.Println("   Linux: sudo apt install ffmpeg")
+		fmt.Println("   Download: https://ffmpeg.org/download.html")
+		return
+	}
+
+	// Look for video and audio file pairs
+	files, err := filepath.Glob("*.f*.mp4")
+	if err != nil {
+		fmt.Printf("Error reading directory: %v\n", err)
+		return
+	}
+
+	audioFiles, err := filepath.Glob("*.f*.m4a")
+	if err != nil {
+		fmt.Printf("Error reading directory: %v\n", err)
+		return
+	}
+
+	if len(files) == 0 || len(audioFiles) == 0 {
+		fmt.Println("❌ No separate video/audio files found in current directory")
+		fmt.Println("   Looking for files like: video.f137.mp4 and audio.f140.m4a")
+		return
+	}
+
+	merged := 0
+	for _, videoFile := range files {
+		// Extract base name (remove .f###.mp4)
+		baseName := strings.TrimSuffix(videoFile, filepath.Ext(videoFile))
+		baseName = regexp.MustCompile(`\.f\d+$`).ReplaceAllString(baseName, "")
+
+		// Look for corresponding audio file
+		var audioFile string
+		for _, af := range audioFiles {
+			audioBaseName := strings.TrimSuffix(af, filepath.Ext(af))
+			audioBaseName = regexp.MustCompile(`\.f\d+$`).ReplaceAllString(audioBaseName, "")
+			if audioBaseName == baseName {
+				audioFile = af
+				break
+			}
+		}
+
+		if audioFile == "" {
+			continue
+		}
+
+		outputFile := baseName + "_merged.mp4"
+		fmt.Printf("🎬 Merging: %s + %s → %s\n", videoFile, audioFile, outputFile)
+
+		// Run ffmpeg to merge
+		cmd := exec.Command(ffmpegPath, "-i", videoFile, "-i", audioFile, "-c", "copy", "-y", outputFile)
+		err := cmd.Run()
+		if err != nil {
+			fmt.Printf("❌ Failed to merge %s: %v\n", baseName, err)
+			continue
+		}
+
+		fmt.Printf("✅ Successfully merged: %s\n", outputFile)
+		merged++
+	}
+
+	if merged == 0 {
+		fmt.Println("❌ No matching video/audio pairs found to merge")
+	} else {
+		fmt.Printf("✅ Successfully merged %d file(s)!\n", merged)
+		fmt.Println("💡 You can now delete the separate .f*.mp4 and .f*.m4a files if desired")
+	}
+}
+
+// installFFmpeg installs ffmpeg automatically on Windows
+func installFFmpeg() {
+	fmt.Println("🔧 Installing ffmpeg...")
+
+	if runtime.GOOS != "windows" {
+		fmt.Println("❌ Automatic installation only supported on Windows")
+		fmt.Println("   Mac: brew install ffmpeg")
+		fmt.Println("   Linux: sudo apt install ffmpeg")
+		return
+	}
+
+	// Try chocolatey first
+	fmt.Println("📦 Trying to install via Chocolatey...")
+	cmd := exec.Command("choco", "install", "ffmpeg", "-y")
+	err := cmd.Run()
+	if err == nil {
+		fmt.Println("✅ ffmpeg installed successfully via Chocolatey!")
+		return
+	}
+
+	// Try scoop
+	fmt.Println("📦 Trying to install via Scoop...")
+	cmd = exec.Command("scoop", "install", "ffmpeg")
+	err = cmd.Run()
+	if err == nil {
+		fmt.Println("✅ ffmpeg installed successfully via Scoop!")
+		return
+	}
+
+	// If both fail, provide manual instructions
+	fmt.Println("❌ Automatic installation failed")
+	fmt.Println("💡 Please install manually:")
+	fmt.Println("   1. Install Chocolatey: https://chocolatey.org/install")
+	fmt.Println("   2. Run: choco install ffmpeg")
+	fmt.Println("   Or download from: https://ffmpeg.org/download.html")
+}
+
+// hasSeparateFiles checks if there are separate video and audio files in the output directory
+func (d *Downloader) hasSeparateFiles() bool {
+	videoFiles, _ := filepath.Glob(filepath.Join(d.options.OutputDir, "*.f*.mp4"))
+	audioFiles, _ := filepath.Glob(filepath.Join(d.options.OutputDir, "*.f*.m4a"))
+	return len(videoFiles) > 0 && len(audioFiles) > 0
+}
+
+// autoMergeFiles automatically merges the most recent video and audio files
+func (d *Downloader) autoMergeFiles() error {
+	videoFiles, err := filepath.Glob(filepath.Join(d.options.OutputDir, "*.f*.mp4"))
+	if err != nil {
+		return err
+	}
+	audioFiles, err := filepath.Glob(filepath.Join(d.options.OutputDir, "*.f*.m4a"))
+	if err != nil {
+		return err
+	}
+
+	if len(videoFiles) == 0 || len(audioFiles) == 0 {
+		return fmt.Errorf("no matching video/audio files found")
+	}
+
+	// Get the most recent files
+	videoFile := videoFiles[len(videoFiles)-1]
+	audioFile := audioFiles[len(audioFiles)-1]
+
+	// Extract base name
+	baseName := strings.TrimSuffix(filepath.Base(videoFile), filepath.Ext(videoFile))
+	baseName = regexp.MustCompile(`\.f\d+$`).ReplaceAllString(baseName, "")
+
+	outputFile := filepath.Join(d.options.OutputDir, baseName+".mp4")
+
+	// Determine which ffmpeg to use
+	var ffmpegPath string
+	if _, err := os.Stat("ffmpeg/ffmpeg.exe"); err == nil {
+		ffmpegPath = "ffmpeg/ffmpeg.exe"
+	} else if _, err := os.Stat("ffmpeg.exe"); err == nil {
+		ffmpegPath = "ffmpeg.exe"
+	} else {
+		ffmpegPath = "ffmpeg"
+	}
+
+	// Run ffmpeg to merge
+	cmd := exec.Command(ffmpegPath, "-i", videoFile, "-i", audioFile, "-c", "copy", "-y", outputFile)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("ffmpeg merge failed: %v", err)
+	}
+
+	// Clean up separate files
+	os.Remove(videoFile)
+	os.Remove(audioFile)
+
+	return nil
 }

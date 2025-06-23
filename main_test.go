@@ -112,15 +112,15 @@ func TestBuildFormatSelector(t *testing.T) {
 	}{
 		{
 			options:  Options{AudioOnly: true},
-			expected: "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+			expected: "bestaudio[acodec!=none]/bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
 		},
 		{
 			options:  Options{VideoOnly: true},
-			expected: "bestvideo[ext=mp4]/bestvideo",
+			expected: "bestvideo[vcodec!=none][ext=mp4]/bestvideo[ext=webm]/bestvideo",
 		},
 		{
 			options:  Options{Quality: "best"},
-			expected: "best[ext=mp4]/best",
+			expected: "best[ext=mp4][acodec!=none]/best[ext=webm][acodec!=none]/best[acodec!=none]/best",
 		},
 		{
 			options:  Options{Quality: "worst"},
@@ -128,11 +128,11 @@ func TestBuildFormatSelector(t *testing.T) {
 		},
 		{
 			options:  Options{Quality: "720p"},
-			expected: "best[height<=720][ext=mp4]/best[height<=720]",
+			expected: "best[height<=720][ext=mp4][acodec!=none]/best[height<=720][acodec!=none]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]",
 		},
 		{
 			options:  Options{Quality: "1080p"},
-			expected: "best[height<=1080][ext=mp4]/best[height<=1080]",
+			expected: "best[height<=1080][ext=mp4][acodec!=none]/best[height<=1080][acodec!=none]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]",
 		},
 	}
 

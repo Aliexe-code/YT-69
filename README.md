@@ -1,287 +1,243 @@
-# YT-69 - YouTube Downloader CLI
+# YT-69 - YouTube Downloader
 
-A fast and clean YouTube video downloader CLI tool built with Go. Downloads only video/audio files - no extra clutter!
+🎬 **High-performance YouTube video and audio downloader with automatic quality selection and ffmpeg integration.**
 
-## 🚀 Features
+## ✨ Features
 
-- **🎬 4K/2K Ultra High Quality** - Download videos in 4K (2160p), 2K (1440p), 1080p and more
-- **🚀 Turbo Mode** - Maximum download speed with 8 concurrent fragments
-- **Single Video Downloads** - Download any YouTube video
-- **Playlist Support** - Download entire playlists at once
-- **Audio Extraction** - Download audio-only files in various formats
-- **Smart Quality Selection** - Automatic best quality detection with fallbacks
-- **Format Conversion** - Convert to different video/audio formats
-- **Video Information** - Get detailed metadata without downloading
-- **Cross-Platform** - Works on Windows, macOS, and Linux
-- **Beautiful CLI** - Intuitive command-line interface with helpful messages
+- 🎯 **Multiple Quality Options**: 4K, 2K, 1080p, 720p, 480p
+- 🎵 **Audio-Only Downloads**: Extract MP3 audio from videos
+- ⚡ **Monster Mode**: Maximum internet bandwidth utilization
+- 🔧 **Auto-Merging**: Automatic video+audio combination
+- 📱 **Single File Output**: No separate video/audio files
+- 🎬 **Universal Compatibility**: Works with all media players
+- 📋 **Playlist Support**: Download entire playlists
+- 🚀 **Portable**: No installation required
 
-## 📦 Installation
+## 🚀 Quick Start
 
-### 🚀 Quick Start
-**For easy installation instructions, see [INSTALL.md](INSTALL.md)**
-
-**TL;DR:**
-1. Download `yt-69.exe`
-2. Run `install.bat` (Windows) or `pip install yt-dlp` (Mac/Linux)
-3. Start downloading: `yt-69.exe -url "https://youtube.com/watch?v=VIDEO_ID"`
-
-### Building from Source
+### 1. Download Files
 ```bash
-git clone https://github.com/Aliexe-code/YT-69.git
-cd YT-69
-make build
+# Download these files from GitHub:
+yt-69.exe              # Main executable
+install-ffmpeg.bat     # FFmpeg installer (run once)
 ```
 
-## 🎯 Usage
-
-### Basic Examples
-
+### 2. Install FFmpeg (One-time setup)
 ```bash
-# Download a video (best quality available)
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ"
-
-# 🎬 Download 4K Ultra HD quality
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 4k
-
-# 🎬 Download 2K Quad HD quality
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 2k
-
-# 🎬 Download 1080p Full HD quality
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 1080p
-
-# Download audio only
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -audio -format mp3
-
-# 🚀 TURBO MODE - Maximum download speed
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --turbo
-
-# 🔥 ULTIMATE COMBO - 4K + Turbo Mode
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 4k --turbo
-
-# Download to specific directory
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -output "./my-videos"
-
-# Download entire playlist
-./yt-69.exe -url "https://youtube.com/playlist?list=PLrAXtmRdnEQy6nuLMHjMZOz59Oq8VGLrG" -playlist
+# Run this once to enable automatic video+audio merging:
+install-ffmpeg.bat
 ```
 
-### Advanced Usage
-
+### 3. Start Downloading
 ```bash
-# Get video information without downloading
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --info
+# Download 2K video with audio:
+yt-69.exe -url "https://www.youtube.com/watch?v=VIDEO_ID" -quality 2k --turbo
 
-# List available formats
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" --list-formats
-
-# Download video only (no audio)
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -video -format mp4
-
-# 2K quality with turbo speed
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 2k --turbo
-
-# Custom resolution
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -quality 900p
-
-# Verbose output for debugging
-./yt-69.exe -url "https://youtube.com/watch?v=dQw4w9WgXcQ" -verbose
+# Download audio only:
+yt-69.exe -url "https://www.youtube.com/watch?v=VIDEO_ID" -quality audio --turbo
 ```
 
-### Using with Makefile
+## 📖 Usage Guide
+
+### Basic Video Downloads
 
 ```bash
-# Quick download
-make run URL="https://youtube.com/watch?v=dQw4w9WgXcQ"
+# Download best quality available
+yt-69.exe -url "VIDEO_URL"
 
-# With options
-make run URL="https://youtube.com/watch?v=dQw4w9WgXcQ" OPTIONS="-quality 720p -audio"
+# Download specific quality with Monster Mode
+yt-69.exe -url "VIDEO_URL" -quality 2k --turbo
 
-# Show help
-make run
+# Download to specific folder
+yt-69.exe -url "VIDEO_URL" -output "C:\Downloads\Videos"
 ```
-
-## 📋 Command Line Options
-
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--url` | `-u` | YouTube video or playlist URL (required) | - |
-| `--output` | `-o` | Output directory for downloads | `./downloads` |
-| `--quality` | `-q` | Video quality (4k, 2k, 1080p, best, etc.) | `best` |
-| `--format` | `-f` | Output format (mp4, mp3, etc.) | `mp4` |
-| `--audio` | `-a` | Download audio only | `false` |
-| `--video` | `-v` | Download video only (no audio) | `false` |
-| `--playlist` | `-p` | Download entire playlist | `false` |
-| `--turbo` | `-t` | Enable turbo mode for maximum speed | `false` |
-| `--verbose` | - | Enable verbose output | `false` |
-| `--info` | - | Show video info without downloading | `false` |
-| `--list-formats` | - | List available formats | `false` |
-
-## 🎨 Supported Formats
-
-### Video Formats
-- **MP4** (recommended) - Universal compatibility
-- **WebM** - Good compression, web-friendly
-- **MKV** - High quality, supports multiple streams
-- **AVI** - Legacy format, wide compatibility
-- **MOV** - Apple's format
-
-### Audio Formats
-- **MP3** (recommended) - Universal compatibility
-- **M4A** - High quality, Apple devices
-- **WAV** - Uncompressed, highest quality
-- **AAC** - Good compression, quality balance
-- **OGG** - Open source, good compression
 
 ### Quality Options
 
-#### 🎬 Ultra High Quality
-- **4k/2160p** - 4K Ultra HD (best for large screens and TVs)
-- **2k/1440p** - 2K Quad HD (great balance of quality/size)
+| Quality | Resolution | Typical Size | Command |
+|---------|------------|--------------|---------|
+| **4K** | 3840x2160 | 100-200MB | `-quality 4k` |
+| **2K** | 2304x1440 | 30-60MB | `-quality 2k` |
+| **1080p** | 1920x1080 | 15-30MB | `-quality 1080p` |
+| **720p** | 1280x720 | 5-15MB | `-quality 720p` |
 
-#### 🎬 High Quality
-- **1080p/fhd** - Full HD (standard high quality)
-- **720p/hd** - HD (good for most uses)
 
-#### 📺 Standard Quality
-- **480p/sd** - Standard Definition
-- **360p** - Low quality
-- **240p** - Very low quality
-- **144p** - Minimum quality
+### Audio Downloads
 
-#### 🎯 Smart Options
-- **best** - Automatically picks highest available quality
-- **worst** - Lowest available quality
-- **Custom** - Any resolution like 900p, 1200p, etc.
-
-## � Turbo Mode & 4K Quality
-
-### 🔥 Ultimate Performance Features
-
-**Turbo Mode** - Maximum download speed optimization:
 ```bash
-# Enable turbo mode for any download
-yt-69.exe -url "VIDEO_URL" --turbo
+# Method 1: Using quality flag
+yt-69.exe -url "VIDEO_URL" -quality audio --turbo
 
-# Turbo mode + specific quality
-yt-69.exe -url "VIDEO_URL" --turbo -quality 1080p
+# Method 2: Using audio flag
+yt-69.exe -url "VIDEO_URL" --audio --turbo
+
+# Both create MP3 files (1-10MB depending on length)
 ```
 
-**What Turbo Mode Does:**
-- ✅ Downloads 8 fragments simultaneously
-- ✅ Uses 10MB chunks for faster transfer
-- ✅ Aggressive retry settings (10 retries)
-- ✅ Optimized buffer sizes (16KB)
-- ✅ Maximum bandwidth utilization
-- ✅ Skip unnecessary file operations
+### Playlist Downloads
 
-**4K/2K Ultra Quality:**
 ```bash
-# 🎬 4K Ultra HD (if available)
-yt-69.exe -url "VIDEO_URL" -quality 4k
+# Download entire playlist
+yt-69.exe -url "PLAYLIST_URL" --playlist -quality 1080p --turbo
 
-# 🎬 2K Quad HD (great balance)
+# Download playlist audio only
+yt-69.exe -url "PLAYLIST_URL" --playlist --audio --turbo
+```
+
+## 🛠️ Command Reference
+
+### Required Parameters
+- `-url "VIDEO_URL"` - YouTube video or playlist URL
+
+### Quality Parameters
+- `-quality 4k` - Download 4K quality (when available)
+- `-quality 2k` - Download 2K quality
+- `-quality 1080p` - Download 1080p quality
+- `-quality 720p` - Download 720p quality
+- `-quality 480p` - Download 480p quality
+- `-quality audio` - Download audio only (MP3)
+
+### Performance Parameters
+- `--turbo` - Enable Monster Mode (maximum bandwidth)
+- `--verbose` - Show detailed download information
+
+### Output Parameters
+- `-output "PATH"` - Specify download directory
+- `--playlist` - Download entire playlist
+
+### Audio/Video Parameters
+- `--audio` or `-a` - Download audio only
+- `--video` or `-v` - Download video only (no audio)
+
+### Information Parameters
+- `--info` - Show video information without downloading
+- `--help` - Show help message
+
+## 📁 File Structure
+
+```
+YT-69/
+├── yt-69.exe              # Main executable
+├── install-ffmpeg.bat     # FFmpeg installer
+├── README.md              # This documentation
+├── INSTALL.md             # Installation guide
+└── downloads/             # Default download folder
+```
+
+## 🎯 Examples
+
+### Download 2K Video
+```bash
+yt-69.exe -url "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -quality 2k --turbo
+# Output: Rick Astley - Never Gonna Give You Up.mp4 (44MB)
+```
+
+### Download Audio Only
+```bash
+yt-69.exe -url "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -quality audio --turbo
+# Output: Rick Astley - Never Gonna Give You Up.mp3 (6.7MB)
+```
+
+### Download Playlist
+```bash
+yt-69.exe -url "https://www.youtube.com/playlist?list=PLAYLIST_ID" --playlist -quality 1080p --turbo
+# Output: Multiple videos in playlist folder
+```
+
+### Check Video Info
+```bash
+yt-69.exe -url "https://www.youtube.com/watch?v=VIDEO_ID" --info
+# Shows available qualities and video information
+```
+
+## ⚡ Monster Mode
+
+Monster Mode (`--turbo`) maximizes your internet bandwidth:
+- **16 parallel downloads** for faster speeds
+- **50MB chunk sizes** for optimal throughput
+- **Automatic retry** on connection issues
+- **Speed optimization** for your connection
+
+```bash
+# Normal download
 yt-69.exe -url "VIDEO_URL" -quality 2k
 
-# 🔥 ULTIMATE COMBO - 4K + Turbo
-yt-69.exe -url "VIDEO_URL" -quality 4k --turbo
+# Monster Mode (faster)
+yt-69.exe -url "VIDEO_URL" -quality 2k --turbo
 ```
 
-**Perfect For:**
-- 🎬 Large video files (1GB+)
-- 🚀 High-speed internet connections
-- 📺 Premium viewing on large screens
-- ⚡ When you want downloads ASAP
+## 🔧 Technical Details
 
-## �🛠️ Makefile Commands
+### Supported Formats
+- **Video**: MP4 (H.264, VP9 codecs)
+- **Audio**: MP3, M4A, WebM
+- **Containers**: MP4, WebM
 
-| Command | Description |
-|---------|-------------|
-| `make build` | Build the executable |
-| `make run URL=<url>` | Run with a YouTube URL |
-| `make test` | Run tests |
-| `make clean` | Remove built executable |
-| `make help` | Show available commands |
-| `make install-deps` | Install yt-dlp dependency |
+### Quality Fallback
+If requested quality isn't available:
+1. **4K** → Falls back to best available (2K/1080p)
+2. **2K** → Falls back to 1080p
+3. **1080p** → Falls back to 720p
+4. **720p** → Falls back to 480p
+
+### Codec Compatibility
+- **H.264**: Universal compatibility (all players)
+- **VP9**: Modern browsers and players
+- **AV01**: Latest browsers (auto-avoided for compatibility)
 
 ## 🚨 Troubleshooting
 
-### Common Issues
-
-**"yt-dlp not found" error:**
+### Video Won't Play
 ```bash
-# Install yt-dlp
-pip install yt-dlp
-# or use the Makefile
-make install-deps
+# Solution: Re-run install-ffmpeg.bat
+install-ffmpeg.bat
+
+# Then re-download the video
+yt-69.exe -url "VIDEO_URL" -quality 1080p --turbo
 ```
 
-**Permission denied errors:**
+### Download Fails
 ```bash
-# Make sure output directory is writable
-chmod 755 ./downloads
+# Check video URL is correct
+yt-69.exe -url "VIDEO_URL" --info
+
+# Try different quality
+yt-69.exe -url "VIDEO_URL" -quality 720p --turbo
 ```
 
-**Download fails:**
+### Slow Downloads
 ```bash
-# Try with verbose output to see detailed error
-./ytdl.exe -url "..." -verbose
+# Enable Monster Mode
+yt-69.exe -url "VIDEO_URL" -quality 2k --turbo
 
-# Update yt-dlp to latest version
-pip install --upgrade yt-dlp
+# Check internet connection
+# Monster Mode requires stable high-speed internet
 ```
 
-### Getting Help
+## 📋 Requirements
 
-```bash
-# Show help message
-./ytdl.exe --help
+- **Windows 10/11** (64-bit)
+- **Internet Connection** (high-speed recommended for Monster Mode)
+- **FFmpeg** (auto-installed via install-ffmpeg.bat)
+- **Disk Space** (varies by video quality and length)
 
-# Show Makefile commands
-make help
-```
+## 🎉 Tips & Tricks
 
-## 📁 Project Structure
+### Best Practices
+1. **Run install-ffmpeg.bat first** for automatic video+audio merging
+2. **Use Monster Mode** for faster downloads on high-speed internet
+3. **Check video info** before downloading large files
+4. **Use 1080p** for best balance of quality and file size
 
-```
-ytdl-cli/
-├── main.go          # Complete CLI application in one file
-├── go.mod           # Go module definition
-├── Makefile         # Build automation
-├── README.md        # This file
-└── ytdl.exe         # Built executable (after make build)
-```
-
-## 🔮 Future Features
-
-- [ ] Batch download from file
-- [ ] Resume interrupted downloads
-- [ ] Download subtitles
-- [ ] Custom naming templates
-- [ ] Configuration file support
-- [ ] Progress bar improvements
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test your changes
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## ⚠️ Legal Notice
-
-This tool is for educational and personal use only. Please respect YouTube's Terms of Service and copyright laws. Only download content you have permission to download.
-
-## 🙏 Acknowledgments
-
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - The powerful backend that makes this possible
-- [Go](https://golang.org/) - The amazing programming language
-- YouTube - For providing the platform (please support content creators!)
+### Quality Recommendations
+- **4K**: For premium displays and archival
+- **2K**: For high-quality viewing on modern screens
+- **1080p**: Best balance for most users
+- **720p**: For mobile devices and limited storage
+- **Audio**: For music and podcasts
 
 ---
 
-**Happy downloading! 🎬✨**
+**Made with ❤️ for the YouTube downloading community**
+
+*For support and updates, visit our GitHub repository*
